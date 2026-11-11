@@ -7,6 +7,7 @@ import streamlit as st
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 from preprocess import CAT_COLS
+from explain import explain_alert, mitre_for
 
 st.set_page_config(page_title="AI SOC Assistant", layout="wide")
 st.title("AI-Powered SOC Assistant")
@@ -53,7 +54,29 @@ c4.metric("Attaques manquées", f"{manquees:,}")
 st.subheader("Alertes par catégorie d'attaque")
 st.bar_chart(df[df["alerte"] == 1]["attack_cat"].value_counts())
 
-st.subheader("Alertes les plus suspectes")
+st.subheader("Alertes les plus suspectes (par catégorie)")
 cols = ["proto", "service", "state", "attack_cat", "proba"]
-top = df[df["alerte"] == 1].sort_values("proba", ascending=False).head(50)
+
+alertes = df[df["alerte"] == 1].sort_values("proba", ascending=False)
+top = alertes.groupby("attack_cat").head(8).sort_values("proba", ascending=False)
+
 st.dataframe(top[cols], use_container_width=True)
+
+st.subheader("Explication d'une alerte (LLM local)")
+if len(top):
+    choix = st.selectbox(
+        "Choisir une alerte",
+        top.index,
+        format_func=lambda i: f"#{i} | {top.loc[i, 'attack_cat']} | score {top.loc[i, 'proba']:.2f}",
+    )
+    tactique, technique = mitre_for(top.loc[choix, "attack_cat"])
+    st.write(f"**MITRE ATT&CK (indicatif) :** {tactique} / {technique}")
+
+    if st.button("Expliquer avec le LLM local"):
+        with st.spinner("Analyse en cours..."):
+            try:
+                st.write(explain_alert(top.loc[choix]))
+            except Exception as e:
+                st.error(f"LLM local injoignable : {e}")
+else:
+    st.info("Aucune alerte à ce seuil. Baisse le seuil dans la barre latérale.")
