@@ -46,13 +46,40 @@ Chaque alerte peut être expliquée par un LLM local, sans envoi de données ver
 l'extérieur.
 
 ## Tests et évaluation
-- Tests automatiques du pipeline (`pytest tests`) : absence de fuite de données,
-  données propres, mêmes colonnes en train et test, qualité minimale du modèle,
-  probabilités valides, robustesse face à une catégorie inconnue.
-- Évaluation qualitative des explications du LLM sur 7 alertes :
-  voir `docs/evaluation_llm.md`. Elle a révélé des attributions erronées de la
-  catégorie au modèle et une mauvaise lecture du champ `state`, corrigées dans
-  le prompt.
+
+### Seuil de décision (XGBoost)
+
+| Seuil | Precision | Recall | F1 |
+|---|---|---|---|
+| 0,5 | 0,711 | 0,970 | 0,820 |
+| 0,7 | 0,810 | 0,927 | 0,864 |
+| 0,8 | 0,866 | 0,883 | 0,875 |
+| 0,9 | 0,940 | 0,819 | 0,875 |
+
+Seuil retenu : **0,7**. Il réduit nettement les fausses alertes (Precision de 0,71 à 0,81)
+pour une perte limitée de détection (Recall de 0,97 à 0,93). Dans un contexte défensif,
+on privilégie le Recall ; un seuil au-delà de 0,8 laisserait passer trop d'attaques.
+
+### Validation croisée (5 plis, sans mélange)
+F1 par pli : 0,918 / 0,956 / 0,964 / 0,949 / 0,699 (moyenne 0,897).
+Le dernier pli est nettement plus bas : les plis étant des blocs contigus du fichier,
+cela indique une sensibilité du modèle aux changements de distribution du trafic.
+
+### Détection par type d'attaque (seuil 0,5)
+- Très bien détectées (≥ 0,99) : Generic, Backdoor, Worms, Reconnaissance, DoS,
+  Exploits, Shellcode.
+- Plus difficiles : Fuzzers (0,885) et Analysis (0,930).
+- Trafic normal signalé à tort : 25 %.
+
+### Tests automatiques du pipeline
+`pytest tests` : absence de fuite de données, données propres, mêmes colonnes en
+train et test, qualité minimale du modèle, probabilités valides, robustesse face à
+une catégorie inconnue.
+
+### Évaluation des explications du LLM
+Évaluation qualitative sur 7 alertes : voir `docs/evaluation_llm.md`. Elle a révélé
+des attributions erronées de la catégorie au modèle et une mauvaise lecture du champ
+`state`, corrigées dans le prompt.
 
 ## Structure
 

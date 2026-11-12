@@ -35,7 +35,7 @@ def load_scored_data():
 
 df = load_scored_data()
 
-seuil = st.sidebar.slider("Seuil de détection", 0.0, 1.0, 0.5, 0.05)
+seuil = st.sidebar.slider("Seuil de détection", 0.0, 1.0, 0.7, 0.05)
 df["alerte"] = (df["proba"] >= seuil).astype(int)
 
 vrais_pos = int(((df["alerte"] == 1) & (df["label"] == 1)).sum())
